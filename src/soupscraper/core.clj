@@ -3,7 +3,7 @@
 
 (require '[skyscraper.dev :refer :all])
 
-(def seed [{:url "https://tomash.soup.io", :processor :soup}])
+(def seed [{:url "https://tomash.soup.io", :who "tomash", :since "latest", :processor :soup}])
 
 (defn parse-post [div]
   (let [content (reaver/select div ".content")
@@ -22,3 +22,22 @@
              :otherwise nil)
            (when h3 {:title (reaver/text h3)})
            (when body {:content (.html body)}))))
+
+(defprocessor :soup
+  :cache-template "soup/:who/list/:since"
+  :process-fn (fn [document context]
+                (let [moar (-> (reaver/select document "#load_more a") (reaver/attr :href))]
+                  (concat
+                   (when moar
+                     (let [since (second (re-find #"/since/(\d+)" moar))]
+                       [{:processor :soup, :since since, :url moar}]))))))
+
+(defn run! []
+  (core/scrape! seed
+                :parse-fn     core/parse-reaver
+                :parallelism  1
+                :html-cache   true
+                :http-options {:connection-timeout 120000
+                               :socket-timeout     120000}))
+
+(taoensso.timbre/set-level! :info)
