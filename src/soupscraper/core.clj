@@ -1,5 +1,7 @@
 (ns soupscraper.core
-  (:require [skyscraper.core :as core :refer [defprocessor]]))
+  (:require [skyscraper.core :as core :refer [defprocessor]]
+            [skyscraper.context :as context]
+            [taoensso.timbre :refer [warnf]]))
 
 (require '[skyscraper.dev :refer :all])
 
@@ -32,12 +34,28 @@
                      (let [since (second (re-find #"/since/(\d+)" moar))]
                        [{:processor :soup, :since since, :url moar}]))))))
 
+(defn download-error-handler
+  [error options context]
+  (let [{:keys [status]} (ex-data error)
+        retry? (or (nil? status) (>= status 500))]
+    (if retry?
+      (do
+        (warnf "[download] Unexpected error %s, retrying" error)
+        [context])
+      (do
+        (warnf "[download] Unexpected error %s, giving up" error)
+        (core/signal-error error context)))))
+
 (defn run! []
   (core/scrape! seed
                 :parse-fn     core/parse-reaver
                 :parallelism  1
                 :html-cache   true
-                :http-options {:connection-timeout 120000
-                               :socket-timeout     120000}))
+                :download-error-handler download-error-handler
+                :sleep        1000
+                :http-options {:redirect-strategy  :lax
+                               :as                 :byte-array
+                               :connection-timeout 10000
+                               :socket-timeout     10000}))
 
 (taoensso.timbre/set-level! :info)
