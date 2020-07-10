@@ -1,0 +1,2 @@
+{:paths ["src"]
+ :deps {skyscraper {:mvn/version "0.3.0"}}}
