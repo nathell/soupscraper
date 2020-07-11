@@ -44,10 +44,14 @@
 (defn download-error-handler
   [error options context]
   (let [{:keys [status]} (ex-data error)
-        retry? (or (nil? status) (>= status 500))]
+        retry? (or (nil? status) (>= status 500) (= status 429))]
     (if retry?
       (do
-        (warnf "[download] Unexpected error %s, retrying" error)
+        (if (= status 429)
+          (do
+            (warnf "[download] Unexpected error %s, retrying after a nap" error)
+            (Thread/sleep 5000))
+          (warnf "[download] Unexpected error %s, retrying" error))
         [context])
       (do
         (warnf "[download] Unexpected error %s, giving up" error)
