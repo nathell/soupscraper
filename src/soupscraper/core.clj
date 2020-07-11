@@ -69,8 +69,8 @@
    :sleep        1000
    :http-options {:redirect-strategy  :lax
                   :as                 :byte-array
-                  :connection-timeout 10000
-                  :socket-timeout     10000}])
+                  :connection-timeout 60000
+                  :socket-timeout     60000}])
 
 (defn run [opts]
   (apply core/scrape (scrape-args opts)))
