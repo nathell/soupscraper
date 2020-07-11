@@ -3,10 +3,6 @@
             [skyscraper.context :as context]
             [taoensso.timbre :refer [warnf]]))
 
-(require '[skyscraper.dev :refer :all])
-
-(def seed [{:url "https://tomash.soup.io", :who "tomash", :since "latest", :processor :soup}])
-
 (defn parse-post [div]
   (let [content (reaver/select div ".content")
         imagebox (reaver/select content "a.lightbox")
@@ -17,22 +13,33 @@
         id (subs (reaver/attr div :id) 4)]
     (merge {:id id}
            (cond
-             video {:type :video, :url (reaver/attr video :src)}
-             imagebox {:type :image, :url (reaver/attr imagebox :href)}
-             imagedirect {:type :image, :url (reaver/attr imagedirect :src)}
+             video {:type :video, :xurl (reaver/attr video :src)}
+             imagebox {:type :image, :xurl (reaver/attr imagebox :href)}
+             imagedirect {:type :image, :xurl (reaver/attr imagedirect :src)}
              body {:type :text}
              :otherwise nil)
            (when h3 {:title (reaver/text h3)})
            (when body {:content (.html body)}))))
 
+(def months ["January" "February" "March" "April" "May" "June" "July" "August" "September" "October"
+             "November" "December"])
+
+(defn yyyymmdd [h2]
+  (format "%s-%02d-%s"
+          (reaver/text (reaver/select h2 ".y"))
+          (inc (.indexOf months (reaver/text (reaver/select h2 ".m"))))
+          (reaver/text (reaver/select h2 ".d"))))
+
 (defprocessor :soup
   :cache-template "soup/:who/list/:since"
-  :process-fn (fn [document context]
-                (let [moar (-> (reaver/select document "#load_more a") (reaver/attr :href))]
+  :process-fn (fn [document {:keys [earliest] :as context}]
+                (let [dates (map yyyymmdd (reaver/select document "h2.date"))
+                      moar (-> (reaver/select document "#load_more a") (reaver/attr :href))]
                   (concat
-                   (when moar
+                   (when (and moar (or (not earliest) (>= (compare (last dates) earliest) 0)))
                      (let [since (second (re-find #"/since/(\d+)" moar))]
-                       [{:processor :soup, :since since, :url moar}]))))))
+                       [{:processor :soup, :since since, :url moar}]))
+                   (map parse-post (reaver/select document ".post"))))))
 
 (defn download-error-handler
   [error options context]
@@ -46,16 +53,28 @@
         (warnf "[download] Unexpected error %s, giving up" error)
         (core/signal-error error context)))))
 
-(defn run! []
-  (core/scrape! seed
-                :parse-fn     core/parse-reaver
-                :parallelism  1
-                :html-cache   true
-                :download-error-handler download-error-handler
-                :sleep        1000
-                :http-options {:redirect-strategy  :lax
-                               :as                 :byte-array
-                               :connection-timeout 10000
-                               :socket-timeout     10000}))
+(defn seed [{:keys [earliest]}]
+  [{:url "https://tomash.soup.io", :who "tomash", :since "latest", :processor :soup, :earliest earliest}])
+
+(defn scrape-args [opts]
+  [(seed opts)
+   :parse-fn     core/parse-reaver
+   :parallelism  1
+   :html-cache   true
+   :download-error-handler download-error-handler
+   :sleep        1000
+   :http-options {:redirect-strategy  :lax
+                  :as                 :byte-array
+                  :connection-timeout 10000
+                  :socket-timeout     10000}])
+
+(defn run [opts]
+  (apply core/scrape (scrape-args opts)))
+
+(defn run! [opts]
+  (apply core/scrape! (scrape-args opts)))
+
+(def cli-options
+  [["-e" "--earliest" "Skip posts older than YYYY-MM-DD"]])
 
 (taoensso.timbre/set-level! :info)
