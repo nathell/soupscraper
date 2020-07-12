@@ -1,7 +1,25 @@
 (ns soupscraper.core
-  (:require [skyscraper.core :as core :refer [defprocessor]]
+  (:require [clojure.string :as string]
+            [skyscraper.core :as core :refer [defprocessor]]
             [skyscraper.context :as context]
             [taoensso.timbre :refer [warnf]]))
+
+;; logic c/o tomash, cf https://github.com/UlanaXY/BowlOfSoup/pull/1
+(defn fullsize-asset-url [url]
+  (when url
+    (if-let [[_ a b c ext] (re-find #"^https://asset.soup.io/asset/(\d+)/([0-9a-f]+)_([0-9a-f]+)_[0-9]+\.(.*)$" url)]
+      (format "https://asset.soup.io/asset/%s/%s_%s.%s" a b c ext)
+      url)))
+
+(defn asset-info [type url]
+  (let [url (fullsize-asset-url url)
+        [_ prefix asset-id ext] (re-find #"^https://asset.soup.io/asset/(\d+)/([0-9a-f_]+)\.(.*)$" url)]
+    {:type type
+     :prefix prefix
+     :asset-id asset-id
+     :ext ext
+     :url url
+     :processor :asset}))
 
 (defn parse-post [div]
   (let [content (reaver/select div ".content")]
@@ -44,6 +62,12 @@
                      (let [since (second (re-find #"/since/(\d+)" moar))]
                        [{:processor :soup, :since since, :url moar}]))
                    (map parse-post (reaver/select document ".post"))))))
+
+(defprocessor :asset
+  :cache-template "soup/:who/assets/:prefix/:asset-id"
+  :parse-fn (fn [headers body] body)
+  :process-fn (fn [document context]
+                {:downloaded true}))
 
 (defn download-error-handler
   [error options context]
