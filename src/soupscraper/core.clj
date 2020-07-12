@@ -31,9 +31,9 @@
           id (subs (reaver/attr div :id) 4)]
       (merge {:id id}
              (cond
-               video {:type :video, :xurl (reaver/attr video :src)}
-               imagebox {:type :image, :xurl (reaver/attr imagebox :href)}
-               imagedirect {:type :image, :xurl (reaver/attr imagedirect :src)}
+               video (asset-info :video (reaver/attr video :src))
+               imagebox (asset-info :image (reaver/attr imagebox :href))
+               imagedirect (asset-info :image (reaver/attr imagedirect :src))
                body {:type :text}
                :otherwise nil)
              (when h3 {:title (reaver/text h3)})
