@@ -4,22 +4,26 @@
             [taoensso.timbre :refer [warnf]]))
 
 (defn parse-post [div]
-  (let [content (reaver/select div ".content")
-        imagebox (reaver/select content "a.lightbox")
-        imagedirect (reaver/select content ".imagecontainer > img")
-        body (reaver/select content ".body")
-        h3 (reaver/select content "content > h3")
-        video (reaver/select content ".embed video")
-        id (subs (reaver/attr div :id) 4)]
-    (merge {:id id}
-           (cond
-             video {:type :video, :xurl (reaver/attr video :src)}
-             imagebox {:type :image, :xurl (reaver/attr imagebox :href)}
-             imagedirect {:type :image, :xurl (reaver/attr imagedirect :src)}
-             body {:type :text}
-             :otherwise nil)
-           (when h3 {:title (reaver/text h3)})
-           (when body {:content (.html body)}))))
+  (let [content (reaver/select div ".content")]
+    (if content
+      (let [imagebox (reaver/select content "a.lightbox")
+            imagedirect (reaver/select content ".imagecontainer > img")
+            body (reaver/select content ".body")
+            h3 (reaver/select content "content > h3")
+            video (reaver/select content ".embed video")
+            id (subs (reaver/attr div :id) 4)]
+        (merge {:id id}
+               (cond
+                 video {:type :video, :xurl (reaver/attr video :src)}
+                 imagebox {:type :image, :xurl (reaver/attr imagebox :href)}
+                 imagedirect {:type :image, :xurl (reaver/attr imagedirect :src)}
+                 body {:type :text}
+                 :otherwise nil)
+               (when h3 {:title (reaver/text h3)})
+               (when body {:content (.html body)})))
+      (do
+        (warnf "[parse-post] no content: %s", div)
+        nil))))
 
 (def months ["January" "February" "March" "April" "May" "June" "July" "August" "September" "October"
              "November" "December"])
