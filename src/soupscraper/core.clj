@@ -72,7 +72,15 @@
   [error options context]
   (let [{:keys [status]} (ex-data error)
         retry? (or (nil? status) (>= status 500) (= status 429))]
-    (if retry?
+    (cond
+      (= status 404)
+      (do
+        (warnf "[download] %s 404'd, dumping in empty file" (:url context))
+        (core/respond-with {:headers {"content-type" "text/plain"}
+                            :body (byte-array 0)}
+                           options context))
+
+      retry?
       (do
         (if (= status 429)
           (do
@@ -80,6 +88,8 @@
             (Thread/sleep 5000))
           (warnf "[download] Unexpected error %s, retrying" error))
         [context])
+
+      :otherwise
       (do
         (warnf "[download] Unexpected error %s, giving up" error)
         (core/signal-error error context)))))
