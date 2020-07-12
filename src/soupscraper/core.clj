@@ -90,15 +90,16 @@
 
 (defn scrape-args [opts]
   [(seed opts)
-   :parse-fn     core/parse-reaver
-   :parallelism  1
-   :html-cache   true
+   :parse-fn               core/parse-reaver
+   :parallelism            1
+   :max-connections        1
+   :html-cache             true
    :download-error-handler download-error-handler
-   :sleep        1000
-   :http-options {:redirect-strategy  :lax
-                  :as                 :byte-array
-                  :connection-timeout 60000
-                  :socket-timeout     60000}])
+   :sleep                  (:sleep opts)
+   :http-options           {:redirect-strategy  :lax
+                            :as                 :byte-array
+                            :connection-timeout 60000
+                            :socket-timeout     60000}])
 
 (defn run [opts]
   (apply core/scrape (scrape-args opts)))
