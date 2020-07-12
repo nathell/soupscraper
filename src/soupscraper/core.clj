@@ -3,7 +3,8 @@
             [clojure.string :as string]
             [skyscraper.core :as core :refer [defprocessor]]
             [skyscraper.context :as context]
-            [taoensso.timbre :refer [warnf]]))
+            [taoensso.timbre :as log :refer [warnf]]
+            [taoensso.timbre.appenders.core :as appenders]))
 
 ;; logic c/o tomash, cf https://github.com/UlanaXY/BowlOfSoup/pull/1
 (defn fullsize-asset-url [url]
@@ -130,7 +131,9 @@
 (def cli-options
   [["-e" "--earliest" "Skip posts older than YYYY-MM-DD"]])
 
-(taoensso.timbre/set-level! :info)
+(log/set-level! :info)
+(log/merge-config! {:appenders {:println {:enabled? false}
+                                :spit (appenders/spit-appender {:fname "log/skyscraper.log"})}})
 
 (defn main []
   (let [item-ch (async/chan)
