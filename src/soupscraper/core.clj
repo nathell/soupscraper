@@ -1,5 +1,6 @@
 (ns soupscraper.core
-  (:require [clojure.string :as string]
+  (:require [clojure.core.async :as async]
+            [clojure.string :as string]
             [skyscraper.core :as core :refer [defprocessor]]
             [skyscraper.context :as context]
             [taoensso.timbre :refer [warnf]]))
@@ -51,19 +52,23 @@
           (inc (.indexOf months (reaver/text (reaver/select h2 ".m"))))
           (reaver/text (reaver/select h2 ".d"))))
 
+(def as-far-as (atom nil))
+
 (defprocessor :soup
-  :cache-template "soup/:who/list/:since"
-  :process-fn (fn [document {:keys [earliest] :as context}]
+  :cache-template "soup/:soup/list/:since"
+  :process-fn (fn [document {:keys [earliest pages-only] :as context}]
                 (let [dates (map yyyymmdd (reaver/select document "h2.date"))
                       moar (-> (reaver/select document "#load_more a") (reaver/attr :href))]
+                  (reset! as-far-as (last dates))
                   (concat
                    (when (and moar (or (not earliest) (>= (compare (last dates) earliest) 0)))
                      (let [since (second (re-find #"/since/(\d+)" moar))]
                        [{:processor :soup, :since since, :url moar}]))
-                   (map parse-post (reaver/select document ".post"))))))
+                   (when-not pages-only
+                     (map parse-post (reaver/select document ".post")))))))
 
 (defprocessor :asset
-  :cache-template "soup/:who/assets/:prefix/:asset-id"
+  :cache-template "soup/:soup/assets/:prefix/:asset-id"
   :parse-fn (fn [headers body] body)
   :process-fn (fn [document context]
                 {:downloaded true}))
@@ -94,29 +99,50 @@
         (warnf "[download] Unexpected error %s, giving up" error)
         (core/signal-error error context)))))
 
-(defn seed [{:keys [earliest]}]
-  [{:url "https://tomash.soup.io", :who "tomash", :since "latest", :processor :soup, :earliest earliest}])
+(defn seed [{:keys [soup earliest pages-only]}]
+  [{:url (format "https://%s.soup.io" soup),
+    :soup soup,
+    :since "latest",
+    :processor :soup,
+    :earliest earliest,
+    :pages-only pages-only}])
 
 (defn scrape-args [opts]
   [(seed opts)
    :parse-fn               core/parse-reaver
    :parallelism            1
-   :max-connections        1
+   ;; :max-connections        1
    :html-cache             true
    :download-error-handler download-error-handler
    :sleep                  (:sleep opts)
    :http-options           {:redirect-strategy  :lax
                             :as                 :byte-array
                             :connection-timeout 60000
-                            :socket-timeout     60000}])
+                            :socket-timeout     60000}
+   :item-chan              (:item-chan opts)])
 
-(defn run [opts]
+(defn scrape [opts]
   (apply core/scrape (scrape-args opts)))
 
-(defn run! [opts]
+(defn scrape! [opts]
   (apply core/scrape! (scrape-args opts)))
 
 (def cli-options
   [["-e" "--earliest" "Skip posts older than YYYY-MM-DD"]])
 
 (taoensso.timbre/set-level! :info)
+
+(defn main []
+  (let [item-ch (async/chan)
+        opts {:soup "tomash"}]
+    (println "Downloading infiniscroll pages...")
+    (async/thread
+      (loop [i 1]
+        (when-let [items (async/<!! item-ch)]
+          (let [item (first items)]
+            (if (and item (= (::core/stage item) `core/split-handler))
+              (do
+                (printf "%s pages going back as far as %s\n" i @as-far-as)
+                (recur (inc i)))
+              (recur i))))))
+    (scrape! (assoc opts :sleep 1000 :item-chan item-ch :pages-only true))))
