@@ -8,12 +8,12 @@
 (defn fullsize-asset-url [url]
   (when url
     (if-let [[_ a b c ext] (re-find #"^https://asset.soup.io/asset/(\d+)/([0-9a-f]+)_([0-9a-f]+)_[0-9]+\.(.*)$" url)]
-      (format "https://asset.soup.io/asset/%s/%s_%s.%s" a b c ext)
-      url)))
+      (format "http://asset.soup.io/asset/%s/%s_%s.%s" a b c ext)
+      (string/replace url "https://" "http://"))))
 
 (defn asset-info [type url]
   (let [url (fullsize-asset-url url)
-        [_ prefix asset-id ext] (re-find #"^https://asset.soup.io/asset/(\d+)/([0-9a-f_]+)\.(.*)$" url)]
+        [_ prefix asset-id ext] (re-find #"^http://asset.soup.io/asset/(\d+)/([0-9a-f_]+)\.(.*)$" url)]
     {:type type
      :prefix prefix
      :asset-id asset-id
