@@ -1,7 +1,11 @@
 (ns soupscraper.core
-  (:require [clojure.core.async :as async]
+  (:require [cheshire.core :as json]
+            [clojure.core.async :as async]
+            [clojure.java.io :as io]
             [clojure.string :as string]
             [clojure.tools.cli :as cli]
+            [java-time]
+            [skyscraper.cache :as cache]
             [skyscraper.core :as core :refer [defprocessor]]
             [skyscraper.context :as context]
             [taoensso.timbre :as log :refer [warnf]]
@@ -24,6 +28,24 @@
      :url url
      :processor :asset}))
 
+(let [formatter (-> (java-time/formatter "MMM dd yyyy HH:mm:ss z")
+                    (.withLocale java.util.Locale/ENGLISH))]
+  (defn parse-post-date [date]
+    (try
+      (java-time/java-date (java-time/instant formatter date))
+      (catch Exception e
+        (warnf "Could not parse date: %s" date)
+        nil))))
+
+(defn parse-user-container [span]
+  (or (reaver/text (reaver/select span ".name"))
+      (reaver/attr (reaver/select span "a img") :title)))
+
+(defn parse-reaction [li]
+  {:user (parse-user-container (reaver/select li ".toggle1 .user_container"))
+   :link (reaver/attr (reaver/select li ".original_link") :href)
+   :type (string/trim (reaver/text (reaver/select li ".toggle1 .info")))})
+
 (defn parse-post [div]
   (if-let [content (reaver/select div ".content")]
     (let [imagebox (reaver/select content "a.lightbox")
@@ -31,8 +53,14 @@
           body (reaver/select content ".body")
           h3 (reaver/select content "content > h3")
           video (reaver/select content ".embed video")
-          id (subs (reaver/attr div :id) 4)]
-      (merge {:id id}
+          id (subs (reaver/attr div :id) 4)
+          time (reaver/select div ".time > abbr")
+          reactions (reaver/select div ".reactions li")
+          reposts (reaver/select div ".reposted_by .user_container")]
+      (merge {:id id
+              :date (parse-post-date (reaver/attr time :title))
+              :reactions (mapv parse-reaction reactions)
+              :reposts (mapv parse-user-container reposts)}
              (cond
                video (if-let [src-url (reaver/attr video :src)]
                        (asset-info :video src-url)
@@ -44,34 +72,33 @@
                body {:type :text}
                :otherwise nil)
              (when h3 {:title (reaver/text h3)})
-             (when body {:content (.html body)})))
+             (when body {:content (.html body)})
+             (when (reaver/select div ".ad-marker") {:sponsored true})))
     (do
       (warnf "[parse-post] no content: %s", div)
       {:type :unable-to-parse, :post div})))
 
-(def months ["January" "February" "March" "April" "May" "June" "July" "August" "September" "October"
-             "November" "December"])
-
-(defn yyyymmdd [h2]
-  (format "%s-%02d-%s"
-          (reaver/text (reaver/select h2 ".y"))
-          (inc (.indexOf months (reaver/text (reaver/select h2 ".m"))))
-          (reaver/text (reaver/select h2 ".d"))))
+(defn date->yyyy-mm-dd [date]
+  (some-> date java-time/instant str (subs 0 10)))
 
 (def as-far-as (atom nil))
 (def total-assets (atom 0))
 
+(defn matches? [selector element]
+  (and (instance? org.jsoup.nodes.Element element)
+       (= (first (reaver/select element selector)) element)))
+
 (defprocessor :soup
   :cache-template "soup/:soup/list/:since"
   :process-fn (fn [document {:keys [earliest pages-only] :as context}]
-                (let [dates (map yyyymmdd (reaver/select document "h2.date"))
-                      moar (-> (reaver/select document "#load_more a") (reaver/attr :href))
-                      posts (map parse-post (reaver/select document ".post"))]
+                (let [posts (map parse-post (reaver/select document "div.post"))
+                      earliest-on-page (->> posts (map :date) sort first date->yyyy-mm-dd)
+                      moar (-> (reaver/select document "#load_more a") (reaver/attr :href))]
                   (when pages-only
                     (swap! total-assets + (count (filter :url posts))))
-                  (swap! as-far-as #(or (last dates) %))
+                  (swap! as-far-as #(or earliest-on-page %))
                   (concat
-                   (when (and moar (or (not earliest) (>= (compare (last dates) earliest) 0)))
+                   (when (and moar (or (not earliest) (>= (compare earliest-on-page earliest) 0)))
                      (let [since (second (re-find #"/since/(\d+)" moar))]
                        [{:processor :soup, :since since, :url moar}]))
                    (when-not pages-only
@@ -138,7 +165,8 @@
   (apply core/scrape! (scrape-args opts)))
 
 (def cli-options
-  [["-e" "--earliest DATE" "Skip posts older than DATE, in YYYY-MM-DD format"]])
+  [["-e" "--earliest DATE" "Skip posts older than DATE, in YYYY-MM-DD format"]
+   ["-o" "--output-dir DIRECTORY" "Save soup data in DIRECTORY" :default "soup"]])
 
 (log/set-level! :info)
 (log/merge-config! {:appenders {:println {:enabled? false}
@@ -179,6 +207,21 @@ Options:
 %s" summary)
   (println))
 
+(defn soup-data [orig-posts]
+  (let [posts (->> orig-posts
+                   (sort-by :date (comp - compare))
+                   (map #(select-keys % [:asset-id :content :date :ext :id :prefix
+                                         :reactions :reposts :sponsored :type]))
+                   distinct)]
+    {:soup-name (-> orig-posts first :soup)
+     :posts posts}))
+
+(defn generate-local-copy [{:keys [output-dir] :as opts} posts]
+  (let [json-file (str output-dir "/soup.json")
+        cache (cache/fs core/html-cache-dir)]
+    (io/make-parents (io/file json-file))
+    (spit json-file (json/generate-string (soup-data posts)))))
+
 (defn download-soup [opts]
   (println "Downloading infiniscroll pages...")
   (let [item-chan (async/chan)]
@@ -188,7 +231,8 @@ Options:
   (let [item-chan (async/chan)]
     (assets-reporter item-chan)
     (scrape! (assoc opts :item-chan item-chan)))
-  (println))
+  (println "\nGenerating local copy...")
+  (generate-local-copy opts (scrape opts)))
 
 (defn sanitize-soup [soup-name-or-url]
   (when soup-name-or-url
