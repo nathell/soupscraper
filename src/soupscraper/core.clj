@@ -34,7 +34,11 @@
           id (subs (reaver/attr div :id) 4)]
       (merge {:id id}
              (cond
-               video (asset-info :video (reaver/attr video :src))
+               video (if-let [src-url (reaver/attr video :src)]
+                       (asset-info :video src-url)
+                       (do
+                         (warnf "[parse-post] no video src: %s" video)
+                         {:type :unable-to-parse, :post div}))
                imagebox (asset-info :image (reaver/attr imagebox :href))
                imagedirect (asset-info :image (reaver/attr imagedirect :src))
                body {:type :text}
