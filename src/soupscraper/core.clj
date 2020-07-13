@@ -1,6 +1,7 @@
 (ns soupscraper.core
   (:require [clojure.core.async :as async]
             [clojure.string :as string]
+            [clojure.tools.cli :as cli]
             [skyscraper.core :as core :refer [defprocessor]]
             [skyscraper.context :as context]
             [taoensso.timbre :as log :refer [warnf]]
@@ -54,13 +55,17 @@
           (reaver/text (reaver/select h2 ".d"))))
 
 (def as-far-as (atom nil))
+(def total-assets (atom 0))
 
 (defprocessor :soup
   :cache-template "soup/:soup/list/:since"
   :process-fn (fn [document {:keys [earliest pages-only] :as context}]
                 (let [dates (map yyyymmdd (reaver/select document "h2.date"))
-                      moar (-> (reaver/select document "#load_more a") (reaver/attr :href))]
-                  (reset! as-far-as (last dates))
+                      moar (-> (reaver/select document "#load_more a") (reaver/attr :href))
+                      posts (map parse-post (reaver/select document ".post"))]
+                  (when pages-only
+                    (swap! total-assets + (count (filter :url posts))))
+                  (swap! as-far-as #(or (last dates) %))
                   (concat
                    (when (and moar (or (not earliest) (>= (compare (last dates) earliest) 0)))
                      (let [since (second (re-find #"/since/(\d+)" moar))]
@@ -129,23 +134,71 @@
   (apply core/scrape! (scrape-args opts)))
 
 (def cli-options
-  [["-e" "--earliest" "Skip posts older than YYYY-MM-DD"]])
+  [["-e" "--earliest DATE" "Skip posts older than DATE, in YYYY-MM-DD format"]])
 
 (log/set-level! :info)
 (log/merge-config! {:appenders {:println {:enabled? false}
                                 :spit (appenders/spit-appender {:fname "log/skyscraper.log"})}})
 
-(defn main []
-  (let [item-ch (async/chan)
-        opts {:soup "tomash"}]
-    (println "Downloading infiniscroll pages...")
-    (async/thread
-      (loop [i 1]
-        (when-let [items (async/<!! item-ch)]
-          (let [item (first items)]
-            (if (and item (= (::core/stage item) `core/split-handler))
-              (do
-                (printf "%s pages going back as far as %s\n" i @as-far-as)
-                (recur (inc i)))
-              (recur i))))))
-    (scrape! (assoc opts :sleep 1000 :item-chan item-ch :pages-only true))))
+;; some touching of Skyscraper internals here; you're not supposed to understand this
+(defn pages-reporter [item-chan]
+  (async/thread
+    (loop [i 1]
+      (when-let [items (async/<!! item-chan)]
+        (let [item (first items)]
+          (if (and item (= (::core/stage item) `core/split-handler))
+            (do
+              (printf "\r%d pages fetched, going back as far as %s" i @as-far-as)
+              (flush)
+              (recur (inc i)))
+            (recur i)))))))
+
+(defn assets-reporter [item-chan]
+  (async/thread
+    (loop [i 1]
+      (when-let [items (async/<!! item-chan)]
+        (let [item (first items)]
+          (if (and item
+                   (= (::core/stage item) `core/split-handler)
+                   (= (:processor item) :asset))
+            (do
+              (printf "\r%d/%d assets fetched" i @total-assets)
+              (flush)
+              (recur (inc i)))
+            (recur i)))))))
+
+(defn print-usage [summary]
+  (printf "Save your Soup from eternal damnation.
+
+Usage: clojure -A:run [options] soup-name-or-url
+Options:
+%s" summary)
+  (println))
+
+(defn download-soup [opts]
+  (println "Downloading infiniscroll pages...")
+  (let [item-chan (async/chan)]
+    (pages-reporter item-chan)
+    (scrape! (assoc opts :sleep 1000 :item-chan item-chan :pages-only true)))
+  (println "\nDownloading assets...")
+  (let [item-chan (async/chan)]
+    (assets-reporter item-chan)
+    (scrape! (assoc opts :item-chan item-chan)))
+  (println))
+
+(defn sanitize-soup [soup-name-or-url]
+  (when soup-name-or-url
+    (or (last (re-find #"^(https?://)?([^.]+)\.soup\.io$" soup-name-or-url))
+        soup-name-or-url)))
+
+(defn validate-args [args]
+  (let [{:keys [options arguments errors summary] :as res} (cli/parse-opts args cli-options)
+        soup (sanitize-soup (first arguments))]
+    (if soup
+      (assoc options :soup soup)
+      (print-usage summary))))
+
+(defn -main [& args]
+  (when-let [opts (validate-args args)]
+    (download-soup opts))
+  (System/exit 0))
