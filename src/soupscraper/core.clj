@@ -58,7 +58,7 @@
           reactions (reaver/select div ".reactions li")
           reposts (reaver/select div ".reposted_by .user_container")]
       (merge {:id id
-              :date (parse-post-date (reaver/attr time :title))
+              :date (when time (parse-post-date (reaver/attr time :title)))
               :reactions (mapv parse-reaction reactions)
               :reposts (mapv parse-user-container reposts)}
              (cond
@@ -78,8 +78,44 @@
       (warnf "[parse-post] no content: %s", div)
       {:type :unable-to-parse, :post div})))
 
+(def months ["January" "February" "March" "April" "May" "June" "July" "August" "September" "October"
+             "November" "December"])
+
+(defn yyyymmdd [h2]
+  (format "%s-%02d-%s"
+          (reaver/text (reaver/select h2 ".y"))
+          (inc (.indexOf months (reaver/text (reaver/select h2 ".m"))))
+          (reaver/text (reaver/select h2 ".d"))))
+
+(defn matches? [selector element]
+  (and (instance? org.jsoup.nodes.Element element)
+       (= (first (reaver/select element selector)) element)))
+
+
 (defn date->yyyy-mm-dd [date]
   (some-> date java-time/instant str (subs 0 10)))
+
+(defn propagate
+  "Given a key `k` and a seq of maps `s`, goes through `s` and if an
+  element doesn't contain `k`, assocs it to the last-seen value.
+
+  (propagate :b [{:a 1 :b 2} {:a 2} {:a 3} {:a 4 :b 5}])
+  ;=> [{:a 1 :b 2} {:a 2 :b 2} {:a 3 :b 2} {:a 4 :b 5}]"
+  [k [fst & rst :as s]]
+  (loop [acc [fst]
+         to-go rst
+         seen? (contains? fst k)
+         last-val (get fst k)]
+    (if-not (seq to-go)
+      acc
+      (let [[fst & rst] to-go
+            has? (contains? fst k)]
+        (recur (conj acc (if (or has? (not seen?))
+                           fst
+                           (assoc fst k last-val)))
+               rst
+               (or seen? (contains? fst k))
+               (if has? (get fst k) last-val))))))
 
 (def as-far-as (atom nil))
 (def total-assets (atom 0))
@@ -88,10 +124,31 @@
   (and (instance? org.jsoup.nodes.Element element)
        (= (first (reaver/select element selector)) element)))
 
+(defn parse-post-or-date [node]
+  (condp matches? node
+    "h2.date" {:date-from-header (yyyymmdd node)}
+    "div.post" (parse-post node)
+    nil))
+
+(defn fixup-date [post]
+  (if (:date post)
+    post
+    (assoc post :date (clojure.instant/read-instant-date (:date-from-header post)))))
+
+(defn parse-posts-and-dates [document]
+  (when-let [nodes (some-> (reaver/select document "#first_batch") first .childNodes)]
+    (->> nodes
+         (map parse-post-or-date)
+         (remove nil?)
+         (propagate :date-from-header)
+         (filter :type)
+         (map fixup-date)
+         (map-indexed #(assoc %2 :num-on-page (- %1))))))
+
 (defprocessor :soup
   :cache-template "soup/:soup/list/:since"
   :process-fn (fn [document {:keys [earliest pages-only] :as context}]
-                (let [posts (map parse-post (reaver/select document "div.post"))
+                (let [posts (parse-posts-and-dates document)
                       earliest-on-page (->> posts (map :date) sort first date->yyyy-mm-dd)
                       moar (-> (reaver/select document "#load_more a") (reaver/attr :href))]
                   (when pages-only
@@ -101,8 +158,7 @@
                    (when (and moar (or (not earliest) (>= (compare earliest-on-page earliest) 0)))
                      (let [since (second (re-find #"/since/(\d+)" moar))]
                        [{:processor :soup, :since since, :url moar}]))
-                   (when-not pages-only
-                     (map parse-post (reaver/select document ".post")))))))
+                   (when-not pages-only posts)))))
 
 (defprocessor :asset
   :cache-template "soup/:soup/assets/:prefix/:asset-id"
@@ -209,7 +265,7 @@ Options:
 
 (defn soup-data [orig-posts]
   (let [posts (->> orig-posts
-                   (sort-by :date (comp - compare))
+                   (sort-by (juxt :date :since :num-on-page) (comp - compare))
                    (map #(select-keys % [:asset-id :content :date :ext :id :prefix
                                          :reactions :reposts :sponsored :type]))
                    distinct)]
@@ -220,6 +276,17 @@ Options:
   (let [json-file (str output-dir "/soup.json")
         cache (cache/fs core/html-cache-dir)]
     (io/make-parents (io/file json-file))
+    (println "Saving assets...")
+    (doseq [{:keys [soup asset-id prefix ext]} posts
+            :when asset-id
+            :let [in-key (format "soup/%s/assets/%s/%s" soup prefix asset-id)
+                  out-file (format "%s/assets/%s/%s.%s" output-dir prefix asset-id ext)
+                  {:keys [blob]} (cache/load-blob cache in-key)]]
+      (io/make-parents out-file)
+      (with-open [in (io/input-stream blob)]
+        (with-open [out (io/output-stream out-file)]
+          (io/copy in out))))
+    (println "Generating soup.json...")
     (spit json-file (json/generate-string (soup-data posts)))))
 
 (defn download-soup [opts]
