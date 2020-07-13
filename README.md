@@ -21,19 +21,25 @@ Dunno for now (Clojure’s cli-tools for Windows are notoriously hard to install
 
 **I ran this and it completed, where’s my soup?**
 
-In `$HOME/skyscraper-data/cache/html/soup/yoursoup`.
+In `soup`. Unless you change the output directory with `--output-dir`.
 
-**But, but… it’s in some weird format!**
+**There’s no HTML there!**
+
+I know. For now, there’s raw assets (images and videos) and a `soup.json` with all the posts in JSON format.
+
+Watch this repo. In a few days, it will be able to generate a locally browsable copy of Soup. There’ll be `index.html`. But not quite yet.
+
+**There’s also some shit in `~/skyscraper-data` which takes up a lot of space!**
 
 Yes, there’s a bunch of files there; you can’t easily view them. Technically, they’re HTMLs and assets, stored as [netstrings](https://cr.yp.to/proto/netstrings.txt), and preceded by another netstring corresponding to HTTP headers as obtained from server, in [edn](https://github.com/edn-format/edn) format.
 
-There are several upsides for having it this way:
+There are several upsides for having a local cache of this kind.
 
 - You can abort the program at any time, and restart it later. It won’t redownload stuff; rather, it will reuse what it’s already downloaded.
 
 - Once you’ve downloaded it, it’s there. When Soup.io finally goes dead, it will continue to be there, and you’ll be able to re-run future versions of the program.
 
-Watch this repo. In a few days, it will be able to generate a locally browsable copy of Soup. You know, `index.html` and stuff. But not quite yet.
+If you’re super happy about your output in `soup`, you can delete `~/skyscraper-data`, but be aware that from then on you’ll need to redownload everything if you want to update your output.
 
 **It’s hung / doing something weird!**
 
