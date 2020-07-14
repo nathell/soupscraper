@@ -6,4 +6,6 @@
         org.apache.logging.log4j/log4j-1.2-api {:mvn/version "2.13.3"}
         org.clojure/tools.cli {:mvn/version "1.0.194"}
         skyscraper {:mvn/version "0.3.0"}}
- :aliases {:run {:main-opts ["-m" "soupscraper.core"]}}}
+ :aliases {:run {:main-opts ["-m" "soupscraper.core"]
+                 ;; looks like Java 11 has problems with TLS 1.3, see https://jira.atlassian.com/browse/JRASERVER-70189
+                 :jvm-opts ["-Djdk.tls.client.protocols=TLSv1,TLSv1.1,TLSv1.2"]}}}
