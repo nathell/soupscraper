@@ -210,8 +210,8 @@
    :sleep                  (:sleep opts)
    :http-options           {:redirect-strategy  :lax
                             :as                 :byte-array
-                            :connection-timeout 60000
-                            :socket-timeout     60000}
+                            :connection-timeout (:connection-timeout opts)
+                            :socket-timeout     (:socket-timeout opts)}
    :item-chan              (:item-chan opts)])
 
 (defn scrape [opts]
@@ -222,7 +222,15 @@
 
 (def cli-options
   [["-e" "--earliest DATE" "Skip posts older than DATE, in YYYY-MM-DD format"]
-   ["-o" "--output-dir DIRECTORY" "Save soup data in DIRECTORY" :default "soup"]])
+   ["-o" "--output-dir DIRECTORY" "Save soup data in DIRECTORY" :default "soup"]
+   [nil "--connection-timeout MS" "Connection timeout in milliseconds"
+    :default 60000
+    :parse-fn #(Long/parseLong %)
+    :validate [pos? "Must be a positive number"]]
+   [nil "--socket-timeout MS" "Socket timeout in milliseconds"
+    :default 60000
+    :parse-fn #(Long/parseLong %)
+    :validate [pos? "Must be a positive number"]]])
 
 (log/set-level! :info)
 (log/merge-config! {:appenders {:println {:enabled? false}
@@ -309,9 +317,10 @@ Options:
 (defn validate-args [args]
   (let [{:keys [options arguments errors summary] :as res} (cli/parse-opts args cli-options)
         soup (sanitize-soup (first arguments))]
-    (if soup
-      (assoc options :soup soup)
-      (print-usage summary))))
+    (cond
+      errors (println (string/join "\n" errors))
+      soup   (assoc options :soup soup)
+      :else  (print-usage summary))))
 
 (defn -main [& args]
   (when-let [opts (validate-args args)]
