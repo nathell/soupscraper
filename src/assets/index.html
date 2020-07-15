@@ -17,7 +17,7 @@
 
       const assetURL = (post) => `assets/${post.prefix}/${post['asset-id']}.${post.ext}`
 
-      const vdate = (date) => text(date.replaceAll(/[TZ]/g, ' ').trim().replaceAll(' 00:00:00', ''))
+      const vdate = (date) => text(date.replace(/[TZ]/g, ' ').trim().replace(' 00:00:00', ''))
 
       const vreaction = (reaction) => {
         return h("p", {}, [text(reaction.type + ' '), h("a", {href: reaction.link}, text(reaction.user))])
