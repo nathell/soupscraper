@@ -50,12 +50,16 @@
 
       const Prev = (state) => {
         window.scrollTo({top: 0});
-        return {...state, offset: state.offset - state.npage};
+        let newOffset = Math.max(0, state.offset - state.npage);
+        window.location.hash = soup.posts[newOffset].id;
+        return {...state, offset: newOffset};
       }
 
       const Next = (state) => {
         window.scrollTo({top: 0});
-        return {...state, offset: state.offset + state.npage};
+        let newOffset = state.offset + state.npage;
+        window.location.hash = soup.posts[newOffset].id;
+        return {...state, offset: newOffset};
       }
 
       const vheader = (offset, npage) => {
@@ -78,8 +82,10 @@
                   h("div", {class: "container posts-container"}, soup.posts.slice(offset, offset + npage).map(vpost))])
       }
 
+      const initialOffset = (location.hash === "" ? null : soup.posts.map(x => x.id).indexOf(location.hash.substring(1))) || 0;
+
       app({
-        init: { offset: 0, npage: 20 },
+        init: { offset: initialOffset, npage: 20 },
         view: ({ offset, npage }) => vsoup(offset, npage),
         node: document.getElementById("app")
       })
