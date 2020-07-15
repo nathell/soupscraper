@@ -2,7 +2,9 @@
 
 _Dej, mam umierajoncom zupe_
 
-soupscraper is a downloader for Soup.io.
+soupscraper is a downloader for Soup.io. Here’s a screencast of the local copy that it can generate for you:
+
+![Screencast](https://user-images.githubusercontent.com/43891/87584084-3fe0f180-c6dd-11ea-84d7-ba84d8824a3b.gif)
 
 ## Usage
 
