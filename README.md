@@ -23,13 +23,7 @@ Dunno for now (Clojure’s cli-tools for Windows are notoriously hard to install
 
 In `soup`. Unless you change the output directory with `--output-dir`.
 
-**There’s no HTML there!**
-
-I know. For now, there’s raw assets (images and videos) and a `soup.json` with all the posts in JSON format.
-
-Watch this repo. In a few days, it will be able to generate a locally browsable copy of Soup. There’ll be `index.html`. But not quite yet.
-
-**There’s also some shit in `~/skyscraper-data` which takes up a lot of space!**
+**There’s some shit in `~/skyscraper-data` which takes up a lot of space!**
 
 Yes, there’s a bunch of files there; you can’t easily view them. Technically, they’re HTMLs and assets, stored as [netstrings](https://cr.yp.to/proto/netstrings.txt), and preceded by another netstring corresponding to HTTP headers as obtained from server, in [edn](https://github.com/edn-format/edn) format.
 
