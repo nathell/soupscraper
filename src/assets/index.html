@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style type="text/css">
+      header { display: flex; align-items: center; padding: 0 24px;}
+      .posts-container { max-width: 1280px; }
+      .posts-container .post { margin-bottom: 24px; }
+      .posts-container .post img { display: block; }
+      .spring { flex: 1; }
+    </style>
+    <script type="text/javascript" src="soup.js"></script>
+    <script type="module">
+      import { h, text, app } from "https://unpkg.com/hyperapp"
+
+      const assetURL = (post) => `assets/${post.prefix}/${post['asset-id']}.${post.ext}`
+
+      const vdate = (date) => text(date.replaceAll(/[TZ]/g, ' ').trim().replaceAll(' 00:00:00', ''))
+
+      const vreaction = (reaction) => {
+        return h("p", {}, [text(reaction.type + ' '), h("a", {href: reaction.link}, text(reaction.user))])
+      }
+
+      const vreposts = (users) => {
+        return users[0] ? [h("p", {}, text("Reposted by " + users.join(", ")))] : [];
+      }
+
+      const vpost = (post) => {
+        let asset = null
+        let content = post.content ? h("div", {class: "content", innerHTML: post.content}) : null
+        let title = post.title ? h("h2", {innerHTML: post.title}) : null
+
+        switch (post.type) {
+        case "image": asset = h("img", {src: assetURL(post)}); break;
+        case "video": asset = h("video", {src: assetURL(post), controls: "controls"}); break;
+        }
+
+        let reactions = post.reactions.map(vreaction)
+        let reposts = vreposts(post.reposts)
+
+        let postElements = [title, asset, content]
+
+        return h("div", {class: "post row"},
+                 [h("aside", {class: "col-sm-12 col-lg-3"},
+                    [h("h3", {}, vdate(post.date)), ...reactions, ...reposts]),
+                  h("div", {class: "col-sm-12 col-lg-9"}, postElements)])
+      }
+
+      const Prev = (state) => {
+        window.scrollTo({top: 0});
+        return {...state, offset: state.offset - state.npage};
+      }
+
+      const Next = (state) => {
+        window.scrollTo({top: 0});
+        return {...state, offset: state.offset + state.npage};
+      }
+
+      const vheader = (offset, npage) => {
+        const page = 1 + Math.ceil(offset / npage);
+        const last = 1 + Math.ceil(soup.posts.length / npage);
+        return h("header", {class: "sticky"},
+                 [h('a', {class: "logo", href: '#'}, text(soup['soup-name'])),
+                  h('button', {disabled: page <= 1, onclick: Prev}, text("←")),
+                  text(`Page ${page}`),
+                  h('button', {disabled: page >= last, onclick: Next}, text("→")),
+                  h('span', {class: 'spring'}),
+                  h('span', {},
+                    [text("Downloaded by "),
+                     h('a', {href: "https://github.com/nathell/soupscraper"}, text("soupscraper"))])]);
+      }
+
+      const vsoup = (offset, npage) => {
+        return h("div", {},
+                 [vheader(offset, npage),
+                  h("div", {class: "container posts-container"}, soup.posts.slice(offset, offset + npage).map(vpost))])
+      }
+
+      app({
+        init: { offset: 0, npage: 20 },
+        view: ({ offset, npage }) => vsoup(offset, npage),
+        node: document.getElementById("app")
+      })
+    </script>
+  </head>
+  <body>
+    <main id="app"></main>
+  </body>
+</html>

@@ -282,6 +282,8 @@ Options:
 
 (defn generate-local-copy [{:keys [output-dir] :as opts} posts]
   (let [json-file (str output-dir "/soup.json")
+        js-file (str output-dir "/soup.js")
+        index-file (str output-dir "/index.html")
         cache (cache/fs core/html-cache-dir)]
     (io/make-parents (io/file json-file))
     (println "Saving assets...")
@@ -294,8 +296,13 @@ Options:
       (with-open [in (io/input-stream blob)]
         (with-open [out (io/output-stream out-file)]
           (io/copy in out))))
-    (println "Generating soup.json...")
-    (spit json-file (json/generate-string (soup-data posts)))))
+    (println "Generating viewable soup...")
+    (let [json (json/generate-string (soup-data posts))]
+      (spit json-file json)
+      (spit js-file (str "window.soup=" json))
+      (with-open [in (io/input-stream (io/resource "assets/index.html"))]
+        (with-open [out (io/output-stream index-file)]
+          (io/copy in out))))))
 
 (defn download-soup [opts]
   (println "Downloading infiniscroll pages...")
