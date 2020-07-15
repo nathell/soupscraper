@@ -9,6 +9,7 @@
       .posts-container { max-width: 1280px; }
       .posts-container .post { margin-bottom: 24px; }
       .posts-container .post img { display: block; }
+      .modal-container input { width: 100%; }
       .spring { flex: 1; }
     </style>
     <script type="text/javascript" src="soup.js"></script>
@@ -48,6 +49,8 @@
                   h("div", {class: "col-sm-12 col-lg-9"}, postElements)])
       }
 
+      const last = (npage) => Math.ceil(soup.posts.length / npage);
+
       const Prev = (state) => {
         window.scrollTo({top: 0});
         let newOffset = Math.max(0, state.offset - state.npage);
@@ -62,23 +65,45 @@
         return {...state, offset: newOffset};
       }
 
+      const Jump = (state, event) => {
+        event.preventDefault();
+        let newpage = document.querySelectorAll('.modal-container input')[0].valueAsNumber;
+        let newOffset = state.npage * (newpage - 1);
+        window.location.hash = soup.posts[newOffset].id;
+        document.getElementById('modal-control').checked = false;
+        return {...state, offset: newOffset}
+      }
+
       const vheader = (offset, npage) => {
         const page = 1 + Math.ceil(offset / npage);
-        const last = 1 + Math.ceil(soup.posts.length / npage);
         return h("header", {class: "sticky"},
                  [h('a', {class: "logo", href: '#'}, text(soup['soup-name'])),
                   h('button', {disabled: page <= 1, onclick: Prev}, text("←")),
-                  text(`Page ${page} of ${last}`),
-                  h('button', {disabled: page >= last, onclick: Next}, text("→")),
+                  text(`Page ${page} of ${last(npage)}`),
+                  h('button', {disabled: page >= last(npage), onclick: Next}, text("→")),
+                  h('label', {for: 'modal-control'}, text("Jump to page")),
                   h('span', {class: 'spring'}),
                   h('span', {},
                     [text("Downloaded by "),
                      h('a', {href: "https://github.com/nathell/soupscraper"}, text("soupscraper"))])]);
       }
 
+      const vmodal = (offset, npage) => {
+        const page = 1 + Math.ceil(offset / npage);
+        return h("div", {class: "modal-container"},
+                 h("div", {class: "card"},
+                   [h("label", {for: 'modal-control', class: 'modal-close'}),
+                    h("h3", {class: "section"}, text(`Jump to page (1–${last(npage)})`)),
+                    h("div", {class: "section"},
+                      h("form", {onsubmit: Jump},
+                        h("input", {type: "number", min: 1, max: last(npage), value: page})))]));
+      }
+
       const vsoup = (offset, npage) => {
         return h("div", {},
                  [vheader(offset, npage),
+                  h("input", {type: "checkbox", id: "modal-control", class: "modal"}),
+                  vmodal(offset, npage),
                   h("div", {class: "container posts-container"}, soup.posts.slice(offset, offset + npage).map(vpost))])
       }
 
