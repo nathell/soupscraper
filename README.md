@@ -6,6 +6,8 @@ soupscraper is a downloader for Soup.io. Here’s a screencast of the local copy
 
 ![Screencast](https://user-images.githubusercontent.com/43891/87584084-3fe0f180-c6dd-11ea-84d7-ba84d8824a3b.gif)
 
+See an example [here](http://soup.tomash.eu/archive/).
+
 ## Usage
 
 1. [Install Clojure](https://clojure.org/guides/getting_started#_clojure_installer_and_cli_tools)
@@ -46,3 +48,13 @@ If you continue to have problems, there’s some logs in `log/`. Create an issue
 **How’d you write this?**
 
 It uses my scraping framework, [Skyscraper](https://github.com/nathell/skyscraper). Check it out.
+
+## License
+
+Copyright 2020, Daniel Janus and contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
