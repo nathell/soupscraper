@@ -286,7 +286,7 @@ Options:
         index-file (str output-dir "/index.html")
         cache (cache/fs core/html-cache-dir)]
     (io/make-parents (io/file json-file))
-    (println "Saving assets...")
+    (println "Saving assets (this may take a while)...")
     (doseq [{:keys [soup asset-id prefix ext]} posts
             :when asset-id
             :let [in-key (format "soup/%s/assets/%s/%s" soup prefix asset-id)
@@ -318,7 +318,7 @@ Options:
 
 (defn sanitize-soup [soup-name-or-url]
   (when soup-name-or-url
-    (or (last (re-find #"^(https?://)?([^.]+)\.soup\.io$" soup-name-or-url))
+    (or (last (re-find #"^(https?://)?([^.]+)\.soup\.io" soup-name-or-url))
         soup-name-or-url)))
 
 (defn validate-args [args]
