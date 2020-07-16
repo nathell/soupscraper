@@ -56,8 +56,10 @@
           id (subs (reaver/attr div :id) 4)
           time (reaver/select div ".time > abbr")
           reactions (reaver/select div ".reactions li")
-          reposts (reaver/select div ".reposted_by .user_container")]
+          reposts (reaver/select div ".reposted_by .user_container")
+          link (reaver/select div ".post_link > .content-container .content h3 a")]
       (merge {:id id
+              :post div
               :date (when time (parse-post-date (reaver/attr time :title)))
               :reactions (mapv parse-reaction reactions)
               :reposts (mapv parse-user-container reposts)}
@@ -67,6 +69,7 @@
                        (do
                          (warnf "[parse-post] no video src: %s" video)
                          {:type :unable-to-parse, :post div}))
+               link {:type :link, :link-title (reaver/text link), :link-url (reaver/attr link :href)}
                imagebox (asset-info :image (reaver/attr imagebox :href))
                imagedirect (asset-info :image (reaver/attr imagedirect :src))
                body {:type :text}
