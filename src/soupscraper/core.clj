@@ -9,7 +9,8 @@
             [skyscraper.core :as core :refer [defprocessor]]
             [skyscraper.context :as context]
             [taoensso.timbre :as log :refer [warnf]]
-            [taoensso.timbre.appenders.core :as appenders]))
+            [taoensso.timbre.appenders.core :as appenders])
+  (:gen-class))
 
 ;; logic c/o tomash, cf https://github.com/UlanaXY/BowlOfSoup/pull/1
 (defn fullsize-asset-url [url]
