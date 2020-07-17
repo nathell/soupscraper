@@ -17,11 +17,23 @@ See an example [here](http://soup.tomash.eu/archive/).
 
 If you want to just download a few pages, add the `--earliest` (or `-e`) option. For example: `clojure -A:run -e 2020-07-01 yoursoup` will skip simulating infinite scroll as soon as it encounters posts from June 2020 or earlier.
 
+### Without installing Clojure
+
+1. Install Java if you haven’t already (tested on JRE 11, any version >=8 should work)
+2. [Download the jar](https://github.com/nathell/soupscraper/releases)
+3. Follow step 3 or 4 above, replacing `clojure -A:run` with `java -Djdk.tls.client.protocols=TLSv1,TLSv1.1,TLSv1.2 -jar soupscraper-0.1.jar`
+
+For example:
+
+```
+java -Djdk.tls.client.protocols=TLSv1,TLSv1.1,TLSv1.2 -jar soupscraper-20200717.jar yoursoup
+```
+
 ## FAQ
 
 **I’m on Windows! How can I run this?**
 
-Dunno for now (Clojure’s cli-tools for Windows are notoriously hard to install), but I’ll try to provide a jar ASAP. When that’s done, you’ll just need Java.
+Use the “Without installing Clojure” approach above.
 
 **I ran this and it completed, where’s my soup?**
 

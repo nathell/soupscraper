@@ -286,6 +286,7 @@
   (printf "Save your Soup from eternal damnation.
 
 Usage: clojure -A:run [options] soup-name-or-url
+   OR: java -Djdk.tls.client.protocols=TLSv1,TLSv1.1,TLSv1.2 -jar soupscraper-0.1.0.jar [options] soup-name-or-url
 Options:
 %s" summary)
   (println))
@@ -350,6 +351,7 @@ Options:
       :else  (print-usage summary))))
 
 (defn -main [& args]
+  (println "This is Soupscraper v0.1.0")
   (when-let [opts (validate-args args)]
     (download-soup opts))
   (System/exit 0))
