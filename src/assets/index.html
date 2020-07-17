@@ -32,10 +32,23 @@
         let asset = null
         let content = post.content ? h("div", {class: "content", innerHTML: post.content}) : null
         let title = post.title ? h("h2", {innerHTML: post.title}) : null
+        let origLink = null
 
         switch (post.type) {
-        case "image": asset = h("img", {src: assetURL(post)}); break;
-        case "video": asset = h("video", {src: assetURL(post), controls: "controls"}); break;
+        case "link":
+          asset = h("div", {},
+                    h("a", {href: post["link-url"], target: "_blank", rel: "noopener noreferrer"},
+                      text(post["link-title"]))); break;
+        case "image":
+          asset = h("img", {src: assetURL(post)}); break;
+        case "video":
+          if (post["tv-type"] === "youtube") {
+            asset = h("iframe", {width: 640, height: 360, src: "https://www.youtube.com/embed/" + post["tv-id"], frameborder: 0, allow: "fullscreen"});
+            origLink = h("div", {}, h("a", {target: "_blank", rel: "noopener noreferrer", href: "https://www.youtube.com/watch?v=" + post["tv-id"]}, text("View on YouTube")));
+          }
+          else
+            asset = h("video", {src: assetURL(post), controls: "controls"});
+          break;
         }
 
         let reactions = post.reactions.map(vreaction)
@@ -45,7 +58,7 @@
 
         return h("div", {class: "post row"},
                  [h("aside", {class: "col-sm-12 col-lg-3"},
-                    [h("h3", {}, vdate(post.date)), ...reactions, ...reposts]),
+                    [h("h3", {}, vdate(post.date)), origLink, ...reactions, ...reposts]),
                   h("div", {class: "col-sm-12 col-lg-9"}, postElements)])
       }
 
