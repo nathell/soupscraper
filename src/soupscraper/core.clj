@@ -57,6 +57,7 @@
           time (reaver/select div ".time > abbr")
           reactions (reaver/select div ".reactions li")
           reposts (reaver/select div ".reposted_by .user_container")
+          tv (reaver/select div ".post_video > .content-container .tv_promo")
           link (reaver/select div ".post_link > .content-container .content h3 a")]
       (merge {:id id
               :post div
@@ -64,6 +65,7 @@
               :reactions (mapv parse-reaction reactions)
               :reposts (mapv parse-user-container reposts)}
              (cond
+               tv {:type :video, :url (str "/tv/show?id=" id), :processor :tv}
                video (if-let [src-url (reaver/attr video :src)]
                        (asset-info :video src-url)
                        (do
@@ -148,6 +150,9 @@
          (map fixup-date)
          (map-indexed #(assoc %2 :num-on-page (- %1))))))
 
+(defn parse-json [headers body]
+  (json/parse-string (core/parse-string headers body) true))
+
 (defprocessor :soup
   :cache-template "soup/:soup/list/:since"
   :process-fn (fn [document {:keys [earliest pages-only] :as context}]
@@ -162,6 +167,16 @@
                      (let [since (second (re-find #"/since/(\d+)" moar))]
                        [{:processor :soup, :since since, :url moar}]))
                    (when-not pages-only posts)))))
+
+(defprocessor :tv
+  :cache-template "soup/:soup/tv/:id"
+  :parse-fn parse-json
+  :process-fn (fn [document context]
+                (try
+                  (let [[type id] (string/split (-> document first second) #":")]
+                    {:tv-type type, :tv-id id})
+                  (catch Exception _
+                    {:type :unable-to-parse, :tv-data document}))))
 
 (defprocessor :asset
   :cache-template "soup/:soup/assets/:prefix/:asset-id"
@@ -278,7 +293,8 @@ Options:
   (let [posts (->> orig-posts
                    (sort-by (juxt :date :since :num-on-page) (comp - compare))
                    (map #(select-keys % [:asset-id :content :date :ext :id :prefix
-                                         :reactions :reposts :sponsored :type]))
+                                         :reactions :reposts :sponsored :type
+                                         :tv-id :tv-type :link-title :link-url]))
                    distinct)]
     {:soup-name (-> orig-posts first :soup)
      :posts posts}))
