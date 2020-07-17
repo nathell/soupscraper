@@ -160,7 +160,7 @@
                       earliest-on-page (->> posts (map :date) sort first date->yyyy-mm-dd)
                       moar (-> (reaver/select document "#load_more a") (reaver/attr :href))]
                   (when pages-only
-                    (swap! total-assets + (count (filter :url posts))))
+                    (swap! total-assets + (count (filter #(= (:processor %) :asset) posts))))
                   (swap! as-far-as #(or earliest-on-page %))
                   (concat
                    (when (and moar (or (not earliest) (>= (compare earliest-on-page earliest) 0)))
