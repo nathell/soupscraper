@@ -350,8 +350,6 @@ Options:
       :else  (print-usage summary))))
 
 (defn -main [& args]
-  ;; looks like Java 11 has problems with TLS 1.3, see https://jira.atlassian.com/browse/JRASERVER-70189
-  (System/setProperty "jdk.tls.client.protocols" "TLSv1,TLSv1.1,TLSv1.2")
   (when-let [opts (validate-args args)]
     (download-soup opts))
   (System/exit 0))
