@@ -1,3 +1,21 @@
+## Update 2020-07-21: Pssst, it still works
+
+Soup.io is officially ~dead~ in new hands now, but old servers haven’t been turned off yet. So apparently you still have a chance of backing up your soup.
+
+Here’s how:
+
+1. [Edit your hosts file](https://support.rackspace.com/how-to/modify-your-hosts-file/) ([instructions for macOS](https://www.imore.com/how-edit-your-macs-hosts-file-and-why-you-would-want)) and add the following entries:
+
+```
+45.153.143.247     soup.io
+45.153.143.247     YOURSOUP.soup.io
+45.153.143.248     asset.soup.io
+```
+
+Put in your soup’s name in place of `YOURSOUP`.
+
+2. Follow the instructions below.
+
 # soupscraper
 
 _Dej, mam umierajoncom zupe_
