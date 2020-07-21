@@ -8,6 +8,7 @@ Here’s how:
 
 ```
 45.153.143.247     soup.io
+45.153.143.247     www.soup.io
 45.153.143.247     YOURSOUP.soup.io
 45.153.143.248     asset.soup.io
 ```
