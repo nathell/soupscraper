@@ -31,6 +31,7 @@
       const vpost = (post) => {
         let asset = null
         let content = post.content ? h("div", {class: "content", innerHTML: post.content}) : null
+        let cite = post.cite ? h("cite", {innerHTML: post.cite}) : null
         let title = post.title ? h("h2", {innerHTML: post.title}) : null
         let origLink = null
 
@@ -54,7 +55,7 @@
         let reactions = post.reactions.map(vreaction)
         let reposts = vreposts(post.reposts)
 
-        let postElements = [title, asset, content]
+        let postElements = [title, asset, content, cite]
 
         return h("div", {class: "post row"},
                  [h("aside", {class: "col-sm-12 col-lg-3"},
