@@ -47,6 +47,9 @@
    :link (reaver/attr (reaver/select li ".original_link") :href)
    :type (string/trim (reaver/text (reaver/select li ".toggle1 .info")))})
 
+(defn parse-tag [a]
+  (reaver/text a))
+
 (defn parse-post [div]
   (if-let [content (reaver/select div ".content")]
     (let [imagebox (reaver/select content "a.lightbox")
@@ -60,13 +63,15 @@
           time (reaver/select div ".time > abbr")
           reactions (reaver/select div ".reactions li")
           reposts (reaver/select div ".reposted_by .user_container")
+          tags (reaver/select div ".tags a")
           tv (reaver/select div ".post_video > .content-container .tv_promo")
           link (reaver/select div ".post_link > .content-container .content h3 a")]
       (merge {:id id
               :post div
               :date (when time (parse-post-date (reaver/attr time :title)))
               :reactions (mapv parse-reaction reactions)
-              :reposts (mapv parse-user-container reposts)}
+              :reposts (mapv parse-user-container reposts)
+              :tags (mapv parse-tag tags)}
              (cond
                tv {:type :video, :url (str "/tv/show?id=" id), :processor :tv}
                video (if-let [src-url (reaver/attr video :src)]
@@ -299,7 +304,7 @@ Options:
   (let [posts (->> orig-posts
                    (sort-by (juxt :date :since :num-on-page) (comp - compare))
                    (map #(select-keys % [:asset-id :cite :content :date :ext :id :prefix
-                                         :reactions :reposts :sponsored :title :type
+                                         :reactions :reposts :sponsored :tags :title :type
                                          :tv-id :tv-type :link-title :link-url]))
                    distinct)]
     {:soup-name (-> orig-posts first :soup)

@@ -28,6 +28,10 @@
         return users[0] ? [h("p", {}, text("Reposted by " + users.join(", ")))] : [];
       }
 
+      const vtags = (tags) => {
+        return tags[0] ? [h("p", {}, text("Tags: " + tags.join(", ")))] : [];
+      }
+
       const vpost = (post) => {
         let asset = null
         let content = post.content ? h("div", {class: "content", innerHTML: post.content}) : null
@@ -54,12 +58,13 @@
 
         let reactions = post.reactions.map(vreaction)
         let reposts = vreposts(post.reposts)
+        let tags = vtags(post.tags)
 
         let postElements = [title, asset, content, cite]
 
         return h("div", {class: "post row"},
                  [h("aside", {class: "col-sm-12 col-lg-3"},
-                    [h("h3", {}, vdate(post.date)), origLink, ...reactions, ...reposts]),
+                    [h("h3", {}, vdate(post.date)), origLink, ...reactions, ...reposts, ...tags]),
                   h("div", {class: "col-sm-12 col-lg-9"}, postElements)])
       }
 
