@@ -52,7 +52,7 @@
     (let [imagebox (reaver/select content "a.lightbox")
           imagedirect (reaver/select content ".imagecontainer > img")
           body (reaver/select content ".body")
-          h3 (reaver/select content "content > h3")
+          h3 (reaver/select content ".content > h3")
           video (reaver/select content ".embed video")
           id (subs (reaver/attr div :id) 4)
           time (reaver/select div ".time > abbr")
@@ -295,7 +295,7 @@ Options:
   (let [posts (->> orig-posts
                    (sort-by (juxt :date :since :num-on-page) (comp - compare))
                    (map #(select-keys % [:asset-id :content :date :ext :id :prefix
-                                         :reactions :reposts :sponsored :type
+                                         :reactions :reposts :sponsored :title :type
                                          :tv-id :tv-type :link-title :link-url]))
                    distinct)]
     {:soup-name (-> orig-posts first :soup)
