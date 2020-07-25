@@ -52,6 +52,8 @@
     (let [imagebox (reaver/select content "a.lightbox")
           imagedirect (reaver/select content ".imagecontainer > img")
           body (reaver/select content ".body")
+          cite (reaver/select content ".content > cite")
+          description (reaver/select content ".description")
           h3 (reaver/select content ".content > h3")
           video (reaver/select content ".embed video")
           id (subs (reaver/attr div :id) 4)
@@ -78,6 +80,8 @@
                body {:type :text}
                :otherwise nil)
              (when h3 {:title (reaver/text h3)})
+             (when cite {:cite (.html cite)})
+             (when description {:content (.html description)})
              (when body {:content (.html body)})
              (when (reaver/select div ".ad-marker") {:sponsored true})))
     (do
@@ -294,7 +298,7 @@ Options:
 (defn soup-data [orig-posts]
   (let [posts (->> orig-posts
                    (sort-by (juxt :date :since :num-on-page) (comp - compare))
-                   (map #(select-keys % [:asset-id :content :date :ext :id :prefix
+                   (map #(select-keys % [:asset-id :cite :content :date :ext :id :prefix
                                          :reactions :reposts :sponsored :title :type
                                          :tv-id :tv-type :link-title :link-url]))
                    distinct)]
